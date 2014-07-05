@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Gitoy</title>
+	<style>
+div,p,input,pre{margin:0;padding:0}
+.hidden{display:none;}
+#page{width:730px; margin:10px auto; color:#333}
+#con{margin:20 auto;}
+#out{font-size:10px; color:#666; border:1px solid #ccc; padding:5px; overflow:scroll; overflow-x:hidden; margin:10px 0; width:680px; max-height:300px;}
+rect{cursor:pointer}
+	</style>
+</head>
+<body>
+<div id="page">
+	<div id="con"></div>
+	<div><input type="button" value="Generate Shell Commands" id="gen" /></div>
+	<div>
+		<pre id="out" class="hidden"></pre>
+	</div>
+</div>
+<script>
+var GITOY = {
+	FILLON : "rgb(214,230,133)",
+	FILLOFF : "rgb(230,230,230)",
+	pause : true,
+	drawSvg : function(con,grp,rec,i,j){
+		var d = document,
+			ns="http://www.w3.org/2000/svg",
+			frag = d.createDocumentFragment();
+		svg = d.createElementNS(ns, "svg");
+		svg.setAttribute("width", 721);
+		svg.setAttribute("height",110);
+		svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
+		frag.appendChild(svg);
+		for (i = 0; i < 53; i++) {
+			grp = d.createElementNS(ns, "g");
+			grp.setAttribute("transform","translate("+i*13+",0)");
+			for(j=0; j<7; j++){
+				rec = d.createElementNS(ns, "rect");
+				rec.setAttribute("width", 11);
+				rec.setAttribute("height", 11);
+				rec.setAttribute("y", j*13);
+				rec.setAttribute("fill", GITOY.FILLOFF);
+				grp.appendChild(rec);
+			}
+			svg.appendChild(grp);
+		};
+		d.getElementById(con).appendChild(frag);
+		// bindings
+		this.bind(d, "mousedown", this.mousedown);
+		this.bind(d, "mouseup", this.mouseup);
+		this.bind(svg, "mouseover", this.draw);
+		this.bind(svg, "contextmenu", function(e){e.preventDefault();});
+	},
+	draw : function(e){
+		if(GITOY.pause) return;
+		GITOY._draw(e);
+	},
+	mousedown: function(e){
+		GITOY.pause = false;
+		GITOY._draw(e);
+	},
+	mouseup: function(e){
+		GITOY.pause = true;
+		GITOY._draw(e);
+	},
+	_draw: function(e){
+		if ((typeof e.target == "object" ) && (e.target.nodeName.toLowerCase() == "rect"))
+			e.target.setAttribute("fill", (e.buttons == 2 || e.button == 2 || e.which == 3) ? GITOY.FILLOFF : GITOY.FILLON);
+	},
+	bind : function(obj, e, func){
+		obj.addEventListener(e, func);
+	},
+	toShell : function(d,i){
+		var date = new Date();
+		date.setDate(date.getDate() - (52*7+date.getDay()));
+		var d = document,
+			rects = d.getElementsByTagName("rect");
+		var count = 0,
+			ret = "#!/bin/sh\n";
+		ret += '\nif test $(id -u) -ne 0; then\n';
+		ret += '  echo "root required."\n';
+		ret += '  exit 0\n';
+		ret += 'fi\n\n';
+		ret += 'git init\n';
+		ret += 'echo "" > log\n';
+		ret += 'git add log\n';
+		ret += '\ntodaytime=$(date +"%Y-%m-%d %H:%M:%S") \n';
+		ret += '\ngitoyc() {\n';
+		ret += '  date -u -s "$1 11:11:11"\n';
+		ret += '  echo " " >> log\n';
+		ret += '  git commit -a -m "log"\n';
+		ret += '}\n\n';
+		for (i=0; i<rects.length; i++){
+			if(rects[i].getAttribute("fill") == GITOY.FILLON){
+				date.setDate(date.getDate()+count);
+				ret += 'gitoyc '
+					+ date.getFullYear() + "-"
+					+ ("0" + (date.getMonth()+1)).slice(-2) + "-"
+					+ ("0" + date.getDate()).slice(-2)
+					+ "\n";
+				count = 0;
+			}
+			count++;
+		}
+		ret += '\ndate -s "$todaytime"\n';
+		return ret;
+	}
+};
+window.onload = function(){
+	GITOY.drawSvg("con");
+	var d = document;
+	var out = d.getElementById("out");
+	GITOY.bind(d.getElementById("con"), "mouseup", function(){
+				out.className = "hidden";
+			});
+	GITOY.bind(d.getElementById("gen"), "click", function(){
+		out.innerHTML = GITOY.toShell();
+		out.className = "";
+	});
+};
+</script>
+</body>
+</html>
